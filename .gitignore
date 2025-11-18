@@ -22,3 +22,6 @@ target/
 
 # Test configuration (local only)
 src/test/
+
+# environment variables
+.env.*
