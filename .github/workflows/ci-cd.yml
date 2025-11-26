@@ -37,8 +37,8 @@ jobs:
         run: chmod +x gradlew
 
       # 5. test 진행
-      # - name: Test with Gradle
-      #  run: ./gradlew test
+      - name: Test with Gradle
+        run: ./gradlew test -i
 
       # 6. test코드 제외하고 jar build
       - name: Build JAR
