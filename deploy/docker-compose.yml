@@ -16,8 +16,7 @@ services:
       - community_net
 
   backend:
-    build:
-      context: ./ktb3-yujin-cloud-community-be
+    image: hanyujin1022/backend:latest
     container_name: community-backend
     restart: always
     depends_on:
@@ -34,8 +33,7 @@ services:
       - community_net
 
   frontend:
-    build:
-      context: ./ktb3-yujin-cloud-community-fe
+    image: hanyujin1022/frontend:latest
     container_name: community-frontend
     restart: always
     depends_on:
@@ -43,15 +41,6 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV}
       BACKEND_URL : ${BACKEND_URL}
-    networks:
-      - community_net
-
-  registry:
-    image: registry:2
-    container_name: private-registry
-    restart: always
-    volumes:
-      - registry_data:/var/lib/registry
     networks:
       - community_net
 
@@ -68,8 +57,6 @@ services:
     depends_on:
       - frontend
       - backend
-      - portainer
-      - registry
     networks:
       - community_net
 
@@ -86,7 +73,6 @@ services:
 volumes:
   db_data:
   portainer_data:
-  registry_data:
 
 networks:
   community_net:
