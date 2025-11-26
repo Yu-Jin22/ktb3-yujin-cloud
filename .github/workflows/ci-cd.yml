@@ -3,13 +3,6 @@ name: Backend CI/CD
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - "src/**"
-      - "build.gradle*"
-      - "settings.gradle*"
-      - "Dockerfile"
-      - "deploy/**"
-      - ".github/workflows/ci-cd.yml"
 
 jobs:
   # 빌드, 테스트, 푸시를 실행
@@ -74,6 +67,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Debug workspace
+        run: ls -R .
+
       - name: Move docker-compose.yml
         uses: appleboy/scp-action@v0.1.7
         with:
