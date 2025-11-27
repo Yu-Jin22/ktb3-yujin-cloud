@@ -1,11 +1,14 @@
 package com.ktb3.community.file.service;
 
+import com.ktb3.community.common.exception.BusinessException;
+import com.ktb3.community.file.dto.FileDto;
 import com.ktb3.community.file.entity.File;
 import com.ktb3.community.file.repository.FileRepository;
 import com.ktb3.community.member.entity.Member;
 import com.ktb3.community.post.entity.Post;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -58,6 +61,32 @@ public class FileService {
 
         fileRepository.save(newProfile);
         return uploadUrl;
+    }
+
+    // 회원 프로필관련 처리 클라이언트(람다) 처리로 DB에 저장만함
+    @Transactional
+    public void saveProfileImageByLambda(Member member, FileDto.FileRequest fileReq) {
+
+        if (fileReq == null || fileReq.getFilePath() == null) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "프로필 이미지 정보가 없습니다.");
+        }
+
+        // 기존 이미지 soft delete
+        fileRepository.findProfileByMemberId(member.getId())
+                .ifPresent(existing -> {
+                    // TODO: S3 삭제
+                    fileRepository.delete(existing);
+                });
+
+        File newProfile = File.createProfileImage(
+                member,
+                fileReq.getFilePath(),
+                fileReq.getFileName(),
+                fileReq.getFileSize(),
+                fileReq.getMimeType()
+        );
+
+        fileRepository.save(newProfile);
     }
 
     /**

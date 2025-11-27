@@ -1,9 +1,12 @@
 package com.ktb3.community.member.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ktb3.community.auth.annotation.AuthMemberId;
 import com.ktb3.community.auth.service.AuthService;
 import com.ktb3.community.auth.util.CookieUtil;
 import com.ktb3.community.common.exception.BusinessException;
+import com.ktb3.community.file.dto.FileDto;
 import com.ktb3.community.member.dto.MemberDto;
 import com.ktb3.community.member.service.MemberService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -74,39 +77,34 @@ public class MemberController {
     /**
      * 회원 정보 수정
      * @param nickname
-     * @param profileImage
+     * @param profileFileInfo
      * @param deleteProfileImage
      * @param memberId
      * @return
+     * @throws JsonProcessingException
      */
-    // 텍스트 + 파일 전송이라 multipart/form-data형식어야함
     @PatchMapping(value = "/{me}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<MemberDto.DetailResponse> updateMember(
             @RequestParam(value = "nickname", required = false)
             @Size(min = 1, max = 10, message = "닉네임은 1자 이상 10자 이하여야 합니다")
             @Pattern(regexp = "^\\S+$", message = "닉네임에 공백을 사용할 수 없습니다")
             String nickname,
-            @RequestParam(value = "profileImage", required = false) MultipartFile profileImage,
+            @RequestParam(required = false) String profileInfo, // JSON 문자열
             @RequestParam(value = "deleteProfileImage", required = false, defaultValue = "false") Boolean deleteProfileImage,
-            @AuthMemberId Long memberId) {
+            @AuthMemberId Long memberId) throws JsonProcessingException {
 
         // 최소한 하나는 수정되어야 함
-        if (nickname == null && profileImage == null && !deleteProfileImage) {
+        if (nickname == null && profileInfo == null && !deleteProfileImage) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "수정할 내용이 없습니다");
         }
 
-        // 이미지 파일 검증
-        if (profileImage != null && !profileImage.isEmpty()) {
-            // 컨텐트 타입 검증
-            String contentType = profileImage.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                throw new IllegalArgumentException("이미지 파일만 업로드 가능합니다");
-            }
-            // 파일 확장자 검증 필요
-            // 이미지 사이즈 제한 필요한가?
+        FileDto.FileRequest fileRequest = null;
+        if (profileInfo != null) {
+            ObjectMapper mapper = new ObjectMapper();
+            fileRequest = mapper.readValue(profileInfo, FileDto.FileRequest.class);
         }
 
-        MemberDto.DetailResponse response = memberService.updateMember(memberId, nickname,profileImage,deleteProfileImage);
+        MemberDto.DetailResponse response = memberService.updateMember(memberId, nickname, fileRequest ,deleteProfileImage);
 
         return ResponseEntity.ok(response);
     }

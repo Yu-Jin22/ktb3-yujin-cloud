@@ -2,6 +2,7 @@ package com.ktb3.community.member.service;
 
 import com.ktb3.community.common.exception.BusinessException;
 import com.ktb3.community.config.SecurityConfig;
+import com.ktb3.community.file.dto.FileDto;
 import com.ktb3.community.file.entity.File;
 import com.ktb3.community.file.service.FileService;
 import com.ktb3.community.member.dto.MemberDto;
@@ -79,38 +80,35 @@ public class MemberService {
 
     // 회원정보 수정(닉네임 + 프로필 이미지)
     @Transactional
-    public MemberDto.DetailResponse updateMember(Long memberId, String nickname, MultipartFile profileImage, Boolean deleteProfile) {
-        // 1. 회원 조회
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(()-> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+    public MemberDto.DetailResponse updateMember(
+            Long memberId,
+            String nickname,
+            FileDto.FileRequest profileFileInfo,
+            Boolean deleteProfile) {
 
-        // 2. 닉네임 수정
-        if (nickname != null || !nickname.isBlank()) {
-            if (memberRepository.existsByNickname(nickname) && !member.getNickname().equals(nickname)) {
-                throw new IllegalArgumentException("이미 사용중인 닉네임입니다.");
+        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "회원을 찾을 수 없습니다."));
+
+        // 닉네임 업데이트
+        if (nickname != null && !nickname.isBlank() &&
+                !nickname.equals(member.getNickname())) {
+
+            if (memberRepository.existsByNickname(nickname)) {
+                throw new BusinessException(HttpStatus.BAD_REQUEST, "이미 사용중인 닉네임입니다.");
             }
             member.updateNickname(nickname);
         }
 
-        // 3. 프로필 이미지 처리
         String profileImageUrl = null;
-
-        // 3-1. 프로필 이미지 삭제
+        // 프로필 이미지 처리
         if (deleteProfile) {
             fileService.deleteProfileImage(member);
-
-            // 3-2. 이미지 변경
-        } else if (profileImage != null && !profileImage.isEmpty()) {
-            profileImageUrl = fileService.saveProfileImage(member, profileImage);
-
-            // 3-3. 이미지 변경 없음
-        } else {
-            profileImageUrl = fileService.getProfileImageUrl(memberId);
+        } else if (profileFileInfo != null) {
+            fileService.saveProfileImageByLambda(member, profileFileInfo);
+            profileImageUrl = profileFileInfo.getFilePath();
         }
 
         return MemberDto.DetailResponse.from(member, profileImageUrl);
-
-
     }
 
 
