@@ -1,0 +1,19 @@
+services:
+  backend:
+    image: hanyujin1022/backend:latest
+    container_name: community-backend
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - community_net
+
+networks:
+  community_net:
+    driver: bridge
