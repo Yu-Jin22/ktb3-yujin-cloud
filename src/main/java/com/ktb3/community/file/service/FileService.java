@@ -1,15 +1,20 @@
 package com.ktb3.community.file.service;
 
+import com.ktb3.community.file.dto.ImageRequest;
 import com.ktb3.community.file.entity.File;
 import com.ktb3.community.file.repository.FileRepository;
 import com.ktb3.community.member.entity.Member;
 import com.ktb3.community.post.entity.Post;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
-import java.io.IOException;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,63 +26,65 @@ import java.util.stream.Collectors;
 public class FileService {
 
     private final FileRepository fileRepository;
+    private final S3Client s3Client;
     private static final int MAX_IMAGE_COUNT = 5;
 
+    @Value("${cloud.aws.s3.bucket}")
+    private String bucket;
 
-    /**
-     * 회원 프로필 변경
-     * @param member
-     * @param profileImage
-     * @return
-     */
+    @Value("${cloud.aws.region.static}")
+    private String region;
+
+
+    // 회원 프로필 메타 데이터 저장
     @Transactional
-    public String saveProfileImage(Member member, MultipartFile profileImage) {
-
-        if (profileImage == null || profileImage.isEmpty()) {
-            throw new IllegalArgumentException("프로필 이미지가 존재하지 않습니다.");
-        }
+    public File saveProfileImage(Member member, ImageRequest req) {
 
         // 기존 프로필 이미지 삭제 (있으면)
-        fileRepository.findProfileByMemberId(member.getId())
-                .ifPresent(existing -> {
-                    // TODO: S3 삭제
-                    fileRepository.delete(existing);
-                });
-
-        // TODO: S3 업로드로 교체
-//        String uploadUrl = uploadToS3(profileImage);
-        String uploadUrl = "https://sample_" + System.currentTimeMillis() + ".jpg";
+        deleteProfileImage(member);
 
         File newProfile = File.createProfileImage(
                 member,
-                uploadUrl,
-                profileImage.getOriginalFilename(),
-                profileImage.getSize(),
-                profileImage.getContentType()
+                req.getFilePath(),      // S3 key
+                req.getFileName(),
+                req.getFileSize(),
+                req.getMimeType()
         );
 
-        fileRepository.save(newProfile);
-        return uploadUrl;
+        return fileRepository.save(newProfile);
     }
 
-    /**
-     * 프로필 이미지 하드삭제 - 사용자가 프로필사진 삭제할때
-     * @param member
-     */
+    // 프로필 이미지 하드삭제
     @Transactional
     public void deleteProfileImage(Member member) {
+
         fileRepository.findProfileByMemberId(member.getId())
-                .ifPresent(file -> {
-                    // TODO: S3 삭제
-                    // 회원프로필 하드삭제
-                    fileRepository.delete(file);
+                .ifPresent(existing -> {
+
+                    // 1.  S3에서 삭제
+                    String key = existing.getFilePath(); // S3 key
+                    if (key != null && !key.isBlank()) {
+                        deleteFromS3(key);
+                    }
+
+                    // 2. DB 삭제
+                    fileRepository.delete(existing);
                 });
     }
 
-    /**
-     * 프로필 이미지 소프트삭제 - 회원탈퇴할때 사용
-     * @param memberId
-     */
+    // S3버킷에서 삭제
+    private void deleteFromS3(String key) {
+        try {
+            s3Client.deleteObject(DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(key)
+                    .build());
+        } catch (S3Exception e) {
+            // 삭제 실패해도 서비스 동작은 유지(DB에는 없어지지만 S3에 파일 남는 건 비용차지하지만, 기능 영향은 없음)
+        }
+    }
+
+    // 프로필 이미지 소프트삭제 - 회원탈퇴할때 사용
     @Transactional
     public void softDeleteProfileImage(Long memberId) {
         fileRepository.findProfileByMemberId(memberId)
@@ -86,15 +93,23 @@ public class FileService {
                 });
     }
 
-    /**
-     * 프로필 이미지 조회
-     * @param memberId
-     * @return
-     */
+    // S3 URL로 변환
+    public String buildFileUrl(String key) {
+        return "https://" + bucket + ".s3." + region + ".amazonaws.com/" + key;
+    }
+
+    // 프로필 이미지 조회
     public String getProfileImageUrl(Long memberId) {
-        return fileRepository.findProfileByMemberId(memberId)
+
+        String filePath =  fileRepository.findProfileByMemberId(memberId)
                 .map(File::getFilePath)
                 .orElse(null);
+
+        if (filePath == null) {
+            return null;
+        }
+
+        return buildFileUrl(filePath);
     }
 
 
