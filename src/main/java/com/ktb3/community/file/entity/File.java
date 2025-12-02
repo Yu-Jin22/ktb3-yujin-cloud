@@ -83,8 +83,8 @@ public class File {
         File file = new File();
         file.post = post;
         file.type = "post";
-        file.member = null;     // 명확하게 null
-        file.filePath = filePath;
+        file.member = null;       // 명확하게 null
+        file.filePath = filePath; // S3 key
         file.fileName = fileName;
         file.fileSize = fileSize;
         file.mimeType = mimeType;

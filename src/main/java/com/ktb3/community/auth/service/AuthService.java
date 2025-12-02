@@ -18,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 import static com.ktb3.community.common.constant.TokenConst.*;
 
 @Service
@@ -40,7 +42,7 @@ public class AuthService {
 
         // 2. 해당 회원의 비밀번호 조회
         MemberAuth memberAuth = memberAuthRepository.findById(member.getId())
-                .orElseThrow(() -> new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "회원 인증정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."));
 
         // 3. 2번의 값과 입력값 일치하는지 확인
         if (!passwordEncoder.matches(request.getPassword(), memberAuth.getPassword())) {
@@ -51,7 +53,8 @@ public class AuthService {
         TokenService.TokenInfo tokens = tokenService.createTokens(member);
 
         // 프로필 이미지 조회
-        String profileUrl = fileService.getProfileImageUrl(member.getId());
+        String profileUrl = Optional.ofNullable(fileService.getProfileImageUrl(member.getId()))
+                .orElse("");
 
         return new AuthDto.TokenResponse(
                 member.getId(), member.getEmail(), member.getNickname(),profileUrl,

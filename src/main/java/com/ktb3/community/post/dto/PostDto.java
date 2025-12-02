@@ -4,7 +4,6 @@ import com.ktb3.community.post.entity.Post;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,7 +16,6 @@ public class PostDto {
 
         private Long postId;
         private String title;
-//        private String thumbnailUrl;    // 썸네일
 
         // 통계
         private long hit;                // 조회수
@@ -144,14 +142,26 @@ public class PostDto {
         @NotBlank(message = "내용을 입력해주세요.")
         private String content;
 
+        private List<ImageRequest> images;
+
         @Builder
-        public PostCreateRequest(String title, String content) {
+        public PostCreateRequest(String title, String content, List<ImageRequest> images) {
             this.title = title;
             this.content = content;
+            this.images = images;
+        }
+
+        @Getter
+        @NoArgsConstructor
+        public static class ImageRequest {
+            private String key;          // S3 key
+            private String originalName; // 원본 파일명
+            private Long fileSize;       // 파일 크기
+            private String mimeType;     // MIME 타입
         }
     }
 
-    // 게시물 등록/수정/삭제 공통 응답
+    // 게시물 등록/삭제 응답
     @Getter
     @Builder
     public static class PostResponse {
@@ -172,48 +182,43 @@ public class PostDto {
         }
     }
 
+
     @Getter
     @NoArgsConstructor
-    public static class PostUpdateRequest{
+    public static class PostUpdateRequest {
 
-        @Size(max = 26, message = "제목은 26자 이하로 입력해주세요") // null이면 수정 안 함
         private String title;
+        private String content;
 
-        private String content; // null이면 수정 안 함
+        // 새로 교체할 이미지 (없으면 null)
+        private PostCreateRequest.ImageRequest newImage;
+    }
 
-        // 삭제할 이미지 ID 목록 ex) [1, 3] → ID가 1, 3인 이미지 삭제
-        private List<Long> deleteImageIds;
+    @Getter
+    @AllArgsConstructor
+    public static class ImageDto {
+        private String url;      // S3 URL (미리보기)
+        private String key;      // S3 key (삭제/유지 판단용)
+        private String fileName; // 원본 파일명
+    }
 
-        // 새로 추가할 이미지 파일 목록
-        @Size(max = 5, message = "이미지는 최대 5개까지 업로드 가능합니다")
-        private List<MultipartFile> newImages;
+    // 게시물 수정 응답
+    @Getter
+    @AllArgsConstructor
+    public static class PostEditResponse {
+        private Long postId;
+        private String title;
+        private String content;
+        private List<ImageDto> images; // 단일 이미지라도 배열 형태로 통일
 
-        // @ModelAttribute 바인딩용 Setter
-        public void setTitle(String title) {
-            this.title = title != null ? title.trim() : null;
+        public static PostEditResponse from(Post post, List<ImageDto> images) {
+            return new PostEditResponse(
+                    post.getId(),
+                    post.getTitle(),
+                    post.getContent(),
+                    images
+            );
         }
-
-        public void setContent(String content) {
-            this.content = content != null ? content.trim() : null;
-        }
-
-        public void setDeleteImageIds(List<Long> deleteImageIds) {
-            this.deleteImageIds = deleteImageIds;
-        }
-
-        public void setImages(List<MultipartFile> newImages) {
-            this.newImages = newImages;
-        }
-
-        @Builder
-        public PostUpdateRequest(String title, String content,
-                                 List<Long> deleteImageIds, List<MultipartFile> newImages) {
-            this.title = title;
-            this.content = content;
-            this.deleteImageIds = deleteImageIds;
-            this.newImages = newImages;
-        }
-
     }
 
 

@@ -147,7 +147,8 @@ public class PostService {
 
 
     @Transactional
-    public PostDto.PostResponse createPost(Long memberId, PostDto.PostCreateRequest request,List<MultipartFile> images) {
+    public PostDto.PostResponse createPost(Long memberId, PostDto.PostCreateRequest request) {
+
         // 1. 작성자(회원) 확인
         Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(()-> new BusinessException(HttpStatus.BAD_REQUEST,"존재하지 않는 회원입니다."));
@@ -161,14 +162,14 @@ public class PostService {
         postRepository.save(post);
 
         // 3. 이미지 저장
-        List<String> imageUrls = fileService.savePostImages(post,images);
+        List<String> imageUrls = fileService.savePostImages(post, request.getImages());
 
         return PostDto.PostResponse.from(post,imageUrls);
 
     }
 
     @Transactional
-    public PostDto.PostResponse getPostForEdit(Long postId, Long memberId) {
+    public PostDto.PostEditResponse getPostForEdit(Long postId, Long memberId) {
 
         // 1. 게시물 조회 (Member JOIN FETCH)
         Post post = postRepository.findByIdWithMember(postId)
@@ -177,46 +178,36 @@ public class PostService {
         // 2. 작성자 수정 권한 확인
         validateOwnership(post, memberId);
 
-        // 3. 이미지 URL 목록 조회
-        List<String> imageUrls = fileService.getPostImageUrls(postId);
+        // 3. 이미지 전체 정보(key, fileName, url)
+        List<PostDto.ImageDto> images = fileService.getPostImagesForEdit(postId);
 
-        return PostDto.PostResponse.from(post, imageUrls);
+        // 4. 반환
+        return PostDto.PostEditResponse.from(post, images);
     }
 
     @Transactional
     public PostDto.PostResponse updatePost(Long postId, Long memberId, PostDto.PostUpdateRequest request) {
 
-        // 1. 게시물 확인
         Post post = postRepository.findByIdAndDeletedAtIsNull(postId)
-                .orElseThrow(()->  new BusinessException(HttpStatus.BAD_REQUEST,"존재하지 않는 게시물입니다."));
+                .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "존재하지 않는 게시물입니다."));
 
-        // 2. 작성자 수정 권한 확인
+        // 작성자 검증
         validateOwnership(post, memberId);
 
-        // 3. 제목/내용 수정
-        if (request.getTitle() != null || request.getContent() != null) {
-            post.updatePost(
-                    request.getTitle() != null ? request.getTitle() : post.getTitle(),
-                    request.getContent() != null ? request.getContent() : post.getContent()
-            );
+        // 제목/내용 수정 (null이면 기존 유지)
+        String newTitle = request.getTitle() != null ? request.getTitle() : post.getTitle();
+        String newContent = request.getContent() != null ? request.getContent() : post.getContent();
+        post.updatePost(newTitle, newContent);
+
+        // 이미지 교체 (newImage가 있는 경우에만 동작)
+        if (request.getNewImage() != null) {
+            fileService.replacePostImage(post, request.getNewImage());
         }
 
-        // 4. 이미지 처리
-        // 4-1. 이미지 삭제 처리
-        if (request.getDeleteImageIds() != null && !request.getDeleteImageIds().isEmpty() ) {
-            fileService.hardDeletePostImages(postId, request.getDeleteImageIds());
-        }
-        // 4-2. 새로운 이미지 추가
-        if (request.getNewImages() != null && !request.getNewImages().isEmpty()) {
-            fileService.addPostImages(post, request.getNewImages());
-        }
-
-        // 4-3. 응답에 보낼 이미지 조회
         List<String> imageUrls = fileService.getPostImageUrls(postId);
 
         return PostDto.PostResponse.from(post, imageUrls);
-
-        }
+    }
 
     @Transactional
     public void deletePost(Long postId, Long memberId) {

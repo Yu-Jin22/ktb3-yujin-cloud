@@ -61,7 +61,7 @@ public class S3Service {
             return "profile/" + memberId + "/" + uuid + "." + ext;
         }
         if ("post".equals(request.getType())) {
-            return "post/" + request.getPostId() + "/" + uuid + "." + ext;
+            return "post/" + memberId + "/" + uuid + "." + ext;
         }
 
         throw new BusinessException(HttpStatus.BAD_REQUEST,"지원하지 않는 type: "+ request.getType());
