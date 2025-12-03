@@ -80,7 +80,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
 
         // 푸터에 있는 페이지
-        if (path.startsWith("/terms") || path.startsWith("/privacy")) return true;
+        if (path.startsWith("/api/terms") || path.startsWith("/api/privacy")) return true;
 
 
         return false;

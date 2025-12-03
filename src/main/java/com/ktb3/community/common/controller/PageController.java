@@ -7,12 +7,12 @@ import org.springframework.web.bind.annotation.GetMapping;
 @Controller
 public class PageController {
 
-    @GetMapping("/terms")
+    @GetMapping("/api/terms")
     public String terms() {
         return "terms";
     }
 
-    @GetMapping("/privacy")
+    @GetMapping("/api/privacy")
     public String privacy() {
         return "privacy";
     }
