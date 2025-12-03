@@ -13,6 +13,11 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      S3_ACCESS_KEY : ${S3_ACCESS_KEY}
+      S3_SECRET_KEY : ${S3_SECRET_KEY}
+      AWS_REGION : ${AWS_REGION}
+      BUCKET_NAME : ${BUCKET_NAME}
+
     networks:
       - community_net
 
